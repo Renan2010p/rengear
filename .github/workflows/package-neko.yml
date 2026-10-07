@@ -1,0 +1,106 @@
+name: package-neko
+
+# Build RENGEAR packaged with the **Neko** engine (its pygame layer) for Linux
+# and Windows, producing `rengear-neko-<platform>.zip` with a `rengear` /
+# `rengear.bat` launcher. On a `v*` tag the zips are attached to a Release.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: neko (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            name: linux-x64
+          - os: windows-latest
+            name: windows-x64
+    steps:
+      - name: Checkout RENGEAR
+        uses: actions/checkout@v4
+
+      - name: Checkout Neko
+        uses: actions/checkout@v4
+        with:
+          repository: Renan2010p/neko
+          path: neko
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Set up Zig
+        uses: mlugg/setup-zig@v1
+        with:
+          version: 0.16.0
+
+      - name: Install SDL2 (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsdl2-dev libsdl2-ttf-dev libsdl2-image-dev libsdl2-mixer-dev
+
+      - name: Set up MSVC (Windows)
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Install SDL2 (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $sdl = "$env:GITHUB_WORKSPACE\sdl2"
+          New-Item -ItemType Directory -Force -Path "$sdl\include", "$sdl\lib" | Out-Null
+          $pkgs = @(
+            @{ repo = "SDL";       ver = "2.30.10"; zip = "SDL2-devel-2.30.10-VC.zip" },
+            @{ repo = "SDL_image"; ver = "2.8.3";   zip = "SDL2_image-devel-2.8.3-VC.zip" },
+            @{ repo = "SDL_ttf";   ver = "2.22.0";  zip = "SDL2_ttf-devel-2.22.0-VC.zip" },
+            @{ repo = "SDL_mixer"; ver = "2.8.1";   zip = "SDL2_mixer-devel-2.8.1-VC.zip" }
+          )
+          foreach ($p in $pkgs) {
+            $url = "https://github.com/libsdl-org/$($p.repo)/releases/download/release-$($p.ver)/$($p.zip)"
+            Write-Host "downloading $url"
+            Invoke-WebRequest -Uri $url -OutFile "$env:TEMP\sdl.zip"
+            Expand-Archive -Path "$env:TEMP\sdl.zip" -DestinationPath "$env:TEMP\sdl" -Force
+            Copy-Item -Recurse -Force "$env:TEMP\sdl\include\*" "$sdl\include\"
+            Copy-Item -Recurse -Force "$env:TEMP\sdl\lib\x64\*" "$sdl\lib\"
+            Remove-Item -Recurse -Force "$env:TEMP\sdl"
+          }
+          "SDL2_INCLUDE=$sdl\include" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          "SDL2_LIB=$sdl\lib" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+
+      - name: Package with Neko
+        env:
+          NEKO_DIR: ${{ github.workspace }}/neko
+        run: python -m tools.package_neko
+
+      - name: Upload package
+        uses: actions/upload-artifact@v4
+        with:
+          name: rengear-neko-${{ matrix.name }}
+          path: rengear-neko-*.zip
+          if-no-files-found: error
+
+  release:
+    name: publish release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*.zip
+          generate_release_notes: true
