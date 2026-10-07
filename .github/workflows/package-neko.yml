@@ -77,7 +77,7 @@ jobs:
         shell: pwsh
         run: |
           $sdl = "$env:GITHUB_WORKSPACE\sdl2"
-          New-Item -ItemType Directory -Force -Path "$sdl\include", "$sdl\lib" | Out-Null
+          New-Item -ItemType Directory -Force -Path "$sdl\include\SDL2", "$sdl\lib" | Out-Null
           $pkgs = @(
             @{ repo = "SDL";       ver = "2.30.10"; zip = "SDL2-devel-2.30.10-VC.zip" },
             @{ repo = "SDL_image"; ver = "2.8.3";   zip = "SDL2_image-devel-2.8.3-VC.zip" },
@@ -87,11 +87,17 @@ jobs:
           foreach ($p in $pkgs) {
             $url = "https://github.com/libsdl-org/$($p.repo)/releases/download/release-$($p.ver)/$($p.zip)"
             Write-Host "downloading $url"
-            Invoke-WebRequest -Uri $url -OutFile "$env:TEMP\sdl.zip"
-            Expand-Archive -Path "$env:TEMP\sdl.zip" -DestinationPath "$env:TEMP\sdl" -Force
-            Copy-Item -Recurse -Force "$env:TEMP\sdl\include\*" "$sdl\include\"
-            Copy-Item -Recurse -Force "$env:TEMP\sdl\lib\x64\*" "$sdl\lib\"
-            Remove-Item -Recurse -Force "$env:TEMP\sdl"
+            $tmp = "$env:TEMP\sdl_pkg"
+            Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
+            Invoke-WebRequest -Uri $url -OutFile "$tmp.zip"
+            Expand-Archive -Path "$tmp.zip" -DestinationPath $tmp -Force
+            # The archive contains a single versioned folder (e.g. SDL2-2.30.10);
+            # its headers live in include/*.h, but Neko includes <SDL2/SDL.h>.
+            $root = (Get-ChildItem $tmp -Directory | Select-Object -First 1).FullName
+            Copy-Item -Recurse -Force "$root\include\*" "$sdl\include\SDL2\"
+            if (Test-Path "$root\lib\x64") {
+              Copy-Item -Recurse -Force "$root\lib\x64\*" "$sdl\lib\"
+            }
           }
           "SDL2_INCLUDE=$sdl\include" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
           "SDL2_LIB=$sdl\lib" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV

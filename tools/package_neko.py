@@ -83,6 +83,9 @@ def find_neko() -> Path:
 
 def build_extension(neko: Path) -> Path:
     args = ["zig", "build", "python", "-Doptimize=ReleaseFast"]
+    if IS_WINDOWS:
+        # CPython on Windows is built with MSVC; match its ABI.
+        args.append("-Dtarget=x86_64-windows-msvc")
 
     inc = os.environ.get("PYTHON_INCLUDE") or sysconfig.get_path("include")
     if inc:
