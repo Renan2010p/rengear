@@ -72,35 +72,16 @@ jobs:
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
 
-      - name: Install SDL2 (Windows)
+      - name: Install SDL2 (Windows, vcpkg)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $sdl = "$env:GITHUB_WORKSPACE\sdl2"
-          New-Item -ItemType Directory -Force -Path "$sdl\include\SDL2", "$sdl\lib" | Out-Null
-          $pkgs = @(
-            @{ repo = "SDL";       ver = "2.30.10"; zip = "SDL2-devel-2.30.10-VC.zip" },
-            @{ repo = "SDL_image"; ver = "2.8.3";   zip = "SDL2_image-devel-2.8.3-VC.zip" },
-            @{ repo = "SDL_ttf";   ver = "2.22.0";  zip = "SDL2_ttf-devel-2.22.0-VC.zip" },
-            @{ repo = "SDL_mixer"; ver = "2.8.1";   zip = "SDL2_mixer-devel-2.8.1-VC.zip" }
-          )
-          foreach ($p in $pkgs) {
-            $url = "https://github.com/libsdl-org/$($p.repo)/releases/download/release-$($p.ver)/$($p.zip)"
-            Write-Host "downloading $url"
-            $tmp = "$env:TEMP\sdl_pkg"
-            Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
-            Invoke-WebRequest -Uri $url -OutFile "$tmp.zip"
-            Expand-Archive -Path "$tmp.zip" -DestinationPath $tmp -Force
-            # The archive contains a single versioned folder (e.g. SDL2-2.30.10);
-            # its headers live in include/*.h, but Neko includes <SDL2/SDL.h>.
-            $root = (Get-ChildItem $tmp -Directory | Select-Object -First 1).FullName
-            Copy-Item -Recurse -Force "$root\include\*" "$sdl\include\SDL2\"
-            if (Test-Path "$root\lib\x64") {
-              Copy-Item -Recurse -Force "$root\lib\x64\*" "$sdl\lib\"
-            }
-          }
-          "SDL2_INCLUDE=$sdl\include" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
-          "SDL2_LIB=$sdl\lib" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          $vcpkg = if ($env:VCPKG_INSTALLATION_ROOT) { "$env:VCPKG_INSTALLATION_ROOT\vcpkg.exe" } else { "C:\vcpkg\vcpkg.exe" }
+          & $vcpkg install sdl2 sdl2-image sdl2-ttf sdl2-mixer --triplet x64-windows
+          $root = "C:\vcpkg\installed\x64-windows"
+          "SDL2_INCLUDE=$root\include" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          "SDL2_LIB=$root\lib" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          "SDL2_BIN=$root\bin" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
 
       - name: Package with Neko
         env:

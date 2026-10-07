@@ -114,9 +114,10 @@ def bundle_libs(code: Path, sdl2_lib: str | None) -> None:
     """Copy the SDL2 shared libraries next to the game (best effort)."""
     libdir = code / "lib"
     if IS_WINDOWS:
-        if not sdl2_lib:
+        dll_dir = os.environ.get("SDL2_BIN") or sdl2_lib
+        if not dll_dir:
             return
-        for dll in Path(sdl2_lib).glob("*.dll"):
+        for dll in Path(dll_dir).glob("*.dll"):
             libdir.mkdir(exist_ok=True)
             shutil.copy2(dll, libdir / dll.name)
         return
