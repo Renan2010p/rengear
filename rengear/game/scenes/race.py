@@ -114,6 +114,7 @@ class RaceScene(Scene):
 
         self._build_cars()
         self._build_views()
+        self._preload_props()
         self.best = dict(app.get_setting("best", {}) or {})
         self.best_lap = self.best.get(track)
 
@@ -166,6 +167,20 @@ class RaceScene(Scene):
                 sky=self.sky, hills=self.hills,
                 scale=self.view_size[0] / 512.0,
             ))
+
+    def _preload_props(self) -> None:
+        """Build every roadside prop and pre-scale it once, so the race never
+        generates track details in real time."""
+        names = set()
+        for seg in self.track.segments:
+            for sp in seg.sprites:
+                names.add(sp["name"])
+        for name in names:
+            if name not in art.PROP_FACTORIES:
+                continue
+            img = art.prop(name)
+            for view in self.views:
+                view.renderer.warm(img)
 
     # ------------------------------------------------------------------
     # lifecycle

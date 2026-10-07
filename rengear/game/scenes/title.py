@@ -33,10 +33,12 @@ class TitleScene(Scene):
 
     def _build_entries(self):
         sound = "ON" if self.app.audio.enabled else "OFF"
+        fps = "ON" if getattr(self.app, "show_fps", False) else "OFF"
         return [
             ("one", "1 PLAYER"),
             ("two", "2 PLAYERS  (split screen)"),
             ("sound", f"SOUND: {sound}"),
+            ("fps", f"SHOW FPS: {fps}"),
             ("quit", "QUIT"),
         ]
 
@@ -68,6 +70,12 @@ class TitleScene(Scene):
         if action == "sound":
             self.app.audio.set_enabled(not self.app.audio.enabled)
             self.app.set_setting("sound", self.app.audio.enabled)
+            self.entries = self._build_entries()
+            self.app.audio.play("confirm")
+            return
+        if action == "fps":
+            self.app.show_fps = not getattr(self.app, "show_fps", False)
+            self.app.set_setting("show_fps", self.app.show_fps)
             self.entries = self._build_entries()
             self.app.audio.play("confirm")
             return
@@ -113,16 +121,16 @@ class TitleScene(Scene):
         draw_text(surface, self.app.fonts, "the trick of the tracks",
                   (w // 2, 54), size=17, color=(200, 170, 220), center=True)
 
-        start = 82
+        start = 70
         for i, (action, label) in enumerate(self.entries):
             selected = i == self.index
             color = (255, 240, 170) if selected else (140, 155, 180)
             text = f"\u00bb {label}" if selected else label
-            draw_text(surface, self.app.fonts, text, (w // 2, start + i * 26),
+            draw_text(surface, self.app.fonts, text, (w // 2, start + i * 22),
                       size=20, color=color, center=True, bold=selected)
 
         draw_text(surface, self.app.fonts,
                   "arrows / WASD: steer & select   Z/SPACE: nitro   ENTER: start",
-                  (w // 2, 178), size=13, color=(120, 140, 170), center=True)
+                  (w // 2, 180), size=13, color=(120, 140, 170), center=True)
         draw_text(surface, self.app.fonts, TITLE, (8, h - 14),
                   size=11, color=(90, 105, 130))

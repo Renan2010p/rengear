@@ -18,7 +18,7 @@ from .platform import EventType, WindowConfig, create_backend
 from .registry import REGISTRY, Registry
 from .save import SaveManager
 from .scene import SceneManager
-from .ui import Fonts
+from .ui import Fonts, draw_text
 
 
 @dataclass
@@ -60,6 +60,7 @@ class App:
         # persisted user settings (sound, difficulty, best laps, …)
         self._settings_path = os.path.join(self.save.directory, "settings.json")
         self.settings: Dict[str, object] = self._load_settings()
+        self.show_fps: bool = bool(self.settings.get("show_fps", False))
 
     # -- settings ---------------------------------------------------------
     def _load_settings(self) -> Dict[str, object]:
@@ -110,6 +111,12 @@ class App:
 
             self.canvas.fill((8, 8, 14))
             self.scenes.draw(self.canvas)
+            if self.show_fps:
+                w, h = self.canvas.get_size()
+                draw_text(self.canvas, self.fonts,
+                          f"{self.backend.get_fps():4.1f} FPS", (w - 6, h - 15),
+                          size=12, color=(130, 255, 170), right=True,
+                          shadow=None)
             self.backend.present(self.canvas)
             self.input.end_frame()
 

@@ -136,6 +136,9 @@ class PygameBackend(Backend):
     def tick(self, fps: int) -> float:
         return self._clock.tick(fps) / 1000.0
 
+    def get_fps(self) -> float:
+        return self._clock.get_fps() if self._clock is not None else 0.0
+
     # -- input ------------------------------------------------------------
     def pressed_keys(self) -> frozenset:
         pressed = pygame.key.get_pressed()

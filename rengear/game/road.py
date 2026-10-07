@@ -345,15 +345,28 @@ class RoadRenderer:
 
     # -- sprites ----------------------------------------------------------
     def _scaled(self, image: pygame.Surface, dest_w: int) -> pygame.Surface:
+        # Bucket the width so the cache holds far fewer distinct sizes (and is
+        # warmed up front by `warm`): the race then never scales on the fly.
+        dest_w = (dest_w // 4) * 4
+        if dest_w < 4:
+            dest_w = 4
         key = (id(image), dest_w)
         surf = self._scale_cache.get(key)
         if surf is None:
             dest_h = max(1, int(dest_w * image.get_height() / image.get_width()))
             surf = pygame.transform.scale(image, (dest_w, dest_h))
-            if len(self._scale_cache) > 1200:
+            if len(self._scale_cache) > 8192:
                 self._scale_cache.clear()
             self._scale_cache[key] = surf
         return surf
+
+    def warm(self, image: pygame.Surface, max_w: int = 256, step: int = 8) -> None:
+        """Pre-scale a prop across the sizes it can appear at, so the race
+        loads its details once instead of generating them in real time."""
+        w = step
+        while w <= max_w:
+            self._scaled(image, w)
+            w += step
 
     def render_on_segment(self, surface: pygame.Surface, image: pygame.Surface,
                           seg: Segment, percent: float, offset: float,
