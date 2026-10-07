@@ -39,10 +39,28 @@ jobs:
         with:
           python-version: "3.13"
 
-      - name: Set up Zig
-        uses: mlugg/setup-zig@v1
-        with:
-          version: 0.16.0
+      # Zig 0.16.0 is fetched straight from ziglang.org (the setup-zig action's
+      # mirrors do not reliably carry 0.16.0). Neko targets 0.16.0: 0.17.0
+      # removed `b.args` / `b.getInstallPath` from `std.Build`.
+      - name: Install Zig (Linux)
+        if: runner.os == 'Linux'
+        env:
+          ZIG_VERSION: "0.16.0"
+        run: |
+          curl -fsSL -o zig.tar.xz "https://ziglang.org/download/${ZIG_VERSION}/zig-x86_64-linux-${ZIG_VERSION}.tar.xz"
+          tar xf zig.tar.xz
+          echo "$PWD/zig-x86_64-linux-${ZIG_VERSION}" >> "$GITHUB_PATH"
+
+      - name: Install Zig (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          ZIG_VERSION: "0.16.0"
+        run: |
+          $url = "https://ziglang.org/download/$env:ZIG_VERSION/zig-x86_64-windows-$env:ZIG_VERSION.zip"
+          Invoke-WebRequest -Uri $url -OutFile zig.zip
+          Expand-Archive zig.zip -DestinationPath .
+          "$env:GITHUB_WORKSPACE\zig-x86_64-windows-$env:ZIG_VERSION" | Out-File -Append $env:GITHUB_PATH
 
       - name: Install SDL2 (Linux)
         if: runner.os == 'Linux'
